@@ -83,6 +83,41 @@ Data alias on transition from step N:
 **wait_for_license**: Add a delay task (e.g. 30s) or a retry loop checking license assignment status before proceeding.
 ```
 
+### End noop — Task Transition Criteria
+
+Every end noop needs Task Transition Criteria Sensitivity set to 1.
+RoboRewsty does NOT pick this up from a spec note — write it as an explicit click instruction in the end step:
+
+```
+**end**: Noop convergence point.
+  After placing the end noop: click the noop node → open properties panel →
+  find "Task Transition Criteria Sensitivity" → set value to 1.
+  Only one path reaches end per execution. Leaving the default (all paths)
+  causes TaskTransitionCriteriaError on every run.
+```
+
+### Per-org webhook trigger (MSP option generators)
+
+When building a workflow that syncs data per org (e.g. users, devices), use a
+webhook trigger. The org context is set automatically via the orgId in the URL:
+`https://engine.rewst.eu/webhooks/custom/trigger/{triggerId}/{rewstOrgId}`
+
+No parent/child multi-org loop needed — Microsoft Graph and ORG.VARIABLES
+resolve to the correct org automatically.
+
+### Filtering lists safely
+
+Prefer explicit list comprehensions over `selectattr` for nullable fields.
+`selectattr('field')` silently passes items where the field is missing entirely.
+
+```
+# Unreliable — passes items where assignedLicenses is missing
+{{ CTX.users | selectattr('assignedLicenses') | list }}
+
+# Reliable — explicitly checks existence and non-empty
+{{ [u for u in CTX.users if u.get('assignedLicenses') and u.get('assignedLicenses') | length > 0] }}
+```
+
 ---
 
 ## Example: New User Onboarding
@@ -168,12 +203,43 @@ Raw JSON field:
 
 Always tell RoboRewsty to map JSON body fields individually, not as a single context variable.
 
+**Raw JSON body — block syntax does not work:**
+
+Never use `{% for %}{% if %}{% endfor %}` block tags in a Generic HTTP Raw JSON body.
+Rewst evaluates the body as a Jinja2 expression, not a template. Use a list comprehension:
+
+```
+# Wrong — TemplateSyntaxError
+{
+  "items": [
+    {% for x in CTX.list %}{"a": "{{ x.a }}"}{% endfor %}
+  ]
+}
+
+# Correct — list comprehension in dict expression
+{{ {"orgId": CTX.organization.id, "items": [{"a": x.a, "b": x.b} for x in CTX.list]} }}
+```
+
+**`| tojson` behavior is inconsistent:**
+
+Sometimes the dict expression renders as valid JSON without `| tojson`, sometimes it renders
+as Python single-quote syntax (invalid JSON). If the endpoint returns an "invalid JSON" error,
+add `| tojson` to the end of the expression:
+
+```
+{{ {"orgId": CTX.organization.id, "items": [...]} | tojson }}
+```
+
+Endpoints that do a double `JSON.parse` (parse string → parse again if still a string) handle
+both cases correctly.
+
 ---
 
 ## Tips for RoboRewsty
 
 - Always name steps with snake_case
 - Use `{{ CTX.variable }}` for context variables, `{{ RESULT.result.data.field }}` for action results
+- Use `{{ CTX.organization.id }}` for the current org ID — `ORG.ID` and `ORG.VARIABLES.rewst_org_id` do not exist in Rewst Jinja context
 - Specify the integration name exactly as it appears in Rewst (e.g. "Microsoft Graph", "ConnectWise Manage")
 - List every data alias explicitly — RoboRewsty uses these to wire transitions
 - Note conditions on transitions (e.g. "only if list is not empty")
