@@ -7,6 +7,15 @@ description: Generate structured workflow specifications for RoboRewsty, the Rew
 
 RoboRewsty is the Rewst AI assistant that builds workflows step by step in the Workflow Builder. Give it a structured spec and it will look up the correct integration actions, validate Jinja2 syntax, and guide you through building.
 
+## Update check
+
+Before starting, check if this skill is up to date by running:
+```bash
+cd <skill_base_directory> && git fetch origin main --quiet 2>/dev/null && git rev-list HEAD..origin/main --count
+```
+- If the count is **0** — you are up to date, proceed normally.
+- If the count is **greater than 0** — tell the user an update is available and ask: "Er is een update beschikbaar voor de RoboRewsty skill. Wil je updaten?" If yes, run `git pull origin main` in the skill directory.
+
 ## How to use this skill
 
 1. Ask the user what the workflow should do (goal, trigger, integrations)
