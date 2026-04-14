@@ -63,6 +63,20 @@ Create an M365 user, assign a license, and open an onboarding ticket in ConnectW
 5. end: Noop convergence point.
 ```
 
+## Update
+
+```bash
+cd ~/.claude/skills/roborewsty && git pull
+```
+
+On Windows (PowerShell):
+
+```powershell
+cd "$env:USERPROFILE\.claude\skills\roborewsty"; git pull
+```
+
+Restart Claude Code after updating.
+
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) installed
