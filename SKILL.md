@@ -244,3 +244,9 @@ both cases correctly.
 - List every data alias explicitly — RoboRewsty uses these to wire transitions
 - Note conditions on transitions (e.g. "only if list is not empty")
 - In JSON body fields: always map keys individually, never pass a whole object as one expression
+
+---
+
+## Changelog
+
+- 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
