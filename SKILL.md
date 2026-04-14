@@ -11,7 +11,7 @@ RoboRewsty is the Rewst AI assistant that builds workflows step by step in the W
 
 1. Ask the user what the workflow should do (goal, trigger, integrations)
 2. Gather inputs, steps, and outputs
-3. When you need details about a specific integration, action, Jinja filter, or Rewst feature, **look it up** on the official Rewst documentation at `docs.rewst.help` or Cluck University at `learn.rewst.io` before guessing
+3. **Look up exact action names** by fetching the relevant integration's actions & endpoints page from the Rewst docs (see Reference Documentation below) — never guess action names
 4. Output a complete spec in the format below
 5. Paste the spec into RoboRewsty in Rewst
 
@@ -250,24 +250,40 @@ both cases correctly.
 
 ## Reference Documentation
 
-When building a spec, consult these official Rewst resources for accurate action names, parameters, and patterns. Use web search or web fetch to look up pages when you need specifics.
+When building a spec, **always look up** the official Rewst docs to get exact action names, required fields, and integration-specific details. Do not guess action names — they are documented.
+
+> **Fetching tip**: `docs.rewst.help` blocks direct web fetches (403). Use the raw GitHub source instead:
+> `https://raw.githubusercontent.com/RewstApp/docs.rewst.help/main/<path>.md`
+> For example, to fetch the Microsoft Graph actions page:
+> `https://raw.githubusercontent.com/RewstApp/docs.rewst.help/main/documentation/integrations/integration-guides/microsoft-cloud-integration-bundle/microsoft-cloud-integration-bundle-actions-and-endpoints.md`
 
 ### Rewst Documentation (docs.rewst.help)
 
-| Topic | URL |
-|-------|-----|
-| Workflow best practices | https://docs.rewst.help/documentation/automations/workflows/best-practices-for-designing-workflows |
-| Workflow builder setup | https://docs.rewst.help/documentation/automations/workflows/workflow-builder-how-to-set-up-a-workflow |
-| Data aliases | https://docs.rewst.help/documentation/automations/workflows/data-aliases |
-| Input & context variables | https://docs.rewst.help/documentation/automations/workflows/data-input-and-output-input-variables-and-context-variables |
-| Completion handlers & wrappers | https://docs.rewst.help/documentation/automations/workflows/completion-handlers-and-workflow-wrappers |
-| Jinja essentials | https://docs.rewst.help/documentation/jinja/jinja-essentials |
-| Jinja filters (full list) | https://docs.rewst.help/documentation/jinja/list-of-jinja-filters |
-| Internal Jinja examples | https://docs.rewst.help/documentation/jinja/internal-rewst-jinja-examples |
-| Jinja use cases & best practices | https://docs.rewst.help/documentation/jinja/use-cases-and-best-practices/collecting-ctx-variables-dynamically-using-jinja |
-| Rewst actions | https://docs.rewst.help/documentation/automations/actions-in-rewst/rewst-actions |
-| Integration guides | https://docs.rewst.help/documentation/configuration/integrations |
-| Custom integrations | https://docs.rewst.help/documentation/configuration/integrations/custom-integrations |
+| Topic | URL | Raw GitHub path |
+|-------|-----|-----------------|
+| Workflow best practices | https://docs.rewst.help/documentation/automations/workflows/best-practices-for-designing-workflows | `documentation/automations/workflows/best-practices-for-designing-workflows.md` |
+| Workflow builder setup | https://docs.rewst.help/documentation/automations/workflows/workflow-builder-how-to-set-up-a-workflow | `documentation/automations/workflows/workflow-builder-how-to-set-up-a-workflow.md` |
+| Data aliases | https://docs.rewst.help/documentation/automations/workflows/data-aliases | `documentation/automations/workflows/data-aliases.md` |
+| Input & context variables | https://docs.rewst.help/documentation/automations/workflows/data-input-and-output-input-variables-and-context-variables | `documentation/automations/workflows/data-input-and-output-input-variables-and-context-variables.md` |
+| Completion handlers & wrappers | https://docs.rewst.help/documentation/automations/workflows/completion-handlers-and-workflow-wrappers | `documentation/automations/workflows/completion-handlers-and-workflow-wrappers.md` |
+| Jinja essentials | https://docs.rewst.help/documentation/jinja/jinja-essentials | `documentation/jinja/jinja-essentials.md` |
+| Jinja filters (full list) | https://docs.rewst.help/documentation/jinja/list-of-jinja-filters | `documentation/jinja/list-of-jinja-filters.md` |
+| Internal Jinja examples | https://docs.rewst.help/documentation/jinja/internal-rewst-jinja-examples | `documentation/jinja/internal-rewst-jinja-examples.md` |
+| Rewst actions | https://docs.rewst.help/documentation/automations/actions-in-rewst/rewst-actions | `documentation/automations/actions-in-rewst/rewst-actions.md` |
+| Integration guides | https://docs.rewst.help/documentation/configuration/integrations | `documentation/configuration/integrations/` |
+| Custom integrations | https://docs.rewst.help/documentation/configuration/integrations/custom-integrations | `documentation/configuration/integrations/custom-integrations.md` |
+
+### Integration Actions & Endpoints
+
+Look these up to get **exact action names** (e.g. "List Users", "Create User") for a specific integration.
+
+| Integration | Actions & endpoints URL | Raw GitHub path |
+|-------------|------------------------|-----------------|
+| Microsoft Graph | https://docs.rewst.help/documentation/integrations/integration-guides/microsoft-cloud-integration-bundle/microsoft-cloud-integration-bundle-actions-and-endpoints | `documentation/integrations/integration-guides/microsoft-cloud-integration-bundle/microsoft-cloud-integration-bundle-actions-and-endpoints.md` |
+| ConnectWise PSA | https://docs.rewst.help/documentation/integrations/psa/connectwise-manage/actions-and-endpoints | `documentation/integrations/psa/connectwise-manage/actions-and-endpoints.md` |
+| Core actions | https://docs.rewst.help/documentation/actions-in-rewst/core-actions | `documentation/actions-in-rewst/core-actions.md` |
+
+For other integrations, search the docs repo or use web search: `site:docs.rewst.help <integration name> actions endpoints`
 
 ### Cluck University (learn.rewst.io)
 
@@ -281,11 +297,12 @@ When building a spec, consult these official Rewst resources for accurate action
 
 ### When to look things up
 
-- **Integration-specific actions**: look up the integration guide on docs.rewst.help to get exact action names and required fields
-- **Unfamiliar Jinja filter**: check the full filter list before inventing syntax
+- **Integration actions**: fetch the actions & endpoints page for that integration to get exact action names and parameters — do not guess
+- **Unfamiliar Jinja filter**: fetch the full filter list before inventing syntax
 - **Form or trigger setup**: consult the workflow builder setup page
 - **Subworkflow patterns**: check completion handlers & wrappers documentation
 - **Training walkthroughs**: point users to the relevant Cluck University course
+- **Permissions or setup issues**: check the integration setup guide for prerequisites (e.g. Azure AD Premium for signInActivity)
 
 ---
 
@@ -410,5 +427,6 @@ Rewst supports try-catch in Jinja for graceful error handling:
 
 ## Changelog
 
+- 2026-04-14: Add raw GitHub fetch paths and integration actions & endpoints lookup table for accurate action names
 - 2026-04-14: Add Rewst docs & Cluck University references, variable roots, Jinja filters, and expanded best practices
 - 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
