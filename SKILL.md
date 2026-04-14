@@ -11,8 +11,9 @@ RoboRewsty is the Rewst AI assistant that builds workflows step by step in the W
 
 1. Ask the user what the workflow should do (goal, trigger, integrations)
 2. Gather inputs, steps, and outputs
-3. Output a complete spec in the format below
-4. Paste the spec into RoboRewsty in Rewst
+3. When you need details about a specific integration, action, Jinja filter, or Rewst feature, **look it up** on the official Rewst documentation at `docs.rewst.help` or Cluck University at `learn.rewst.io` before guessing
+4. Output a complete spec in the format below
+5. Paste the spec into RoboRewsty in Rewst
 
 ---
 
@@ -247,6 +248,167 @@ both cases correctly.
 
 ---
 
+## Reference Documentation
+
+When building a spec, consult these official Rewst resources for accurate action names, parameters, and patterns. Use web search or web fetch to look up pages when you need specifics.
+
+### Rewst Documentation (docs.rewst.help)
+
+| Topic | URL |
+|-------|-----|
+| Workflow best practices | https://docs.rewst.help/documentation/automations/workflows/best-practices-for-designing-workflows |
+| Workflow builder setup | https://docs.rewst.help/documentation/automations/workflows/workflow-builder-how-to-set-up-a-workflow |
+| Data aliases | https://docs.rewst.help/documentation/automations/workflows/data-aliases |
+| Input & context variables | https://docs.rewst.help/documentation/automations/workflows/data-input-and-output-input-variables-and-context-variables |
+| Completion handlers & wrappers | https://docs.rewst.help/documentation/automations/workflows/completion-handlers-and-workflow-wrappers |
+| Jinja essentials | https://docs.rewst.help/documentation/jinja/jinja-essentials |
+| Jinja filters (full list) | https://docs.rewst.help/documentation/jinja/list-of-jinja-filters |
+| Internal Jinja examples | https://docs.rewst.help/documentation/jinja/internal-rewst-jinja-examples |
+| Jinja use cases & best practices | https://docs.rewst.help/documentation/jinja/use-cases-and-best-practices/collecting-ctx-variables-dynamically-using-jinja |
+| Rewst actions | https://docs.rewst.help/documentation/automations/actions-in-rewst/rewst-actions |
+| Integration guides | https://docs.rewst.help/documentation/configuration/integrations |
+| Custom integrations | https://docs.rewst.help/documentation/configuration/integrations/custom-integrations |
+
+### Cluck University (learn.rewst.io)
+
+| Topic | URL |
+|-------|-----|
+| Course catalog | https://learn.rewst.io/page/course-catalog |
+| Rewst Foundations path | https://learn.rewst.io/path/rewst-foundations |
+| Automation Basics path | https://learn.rewst.io/path/automation-basics-path |
+| Building a basic form and workflow | https://learn.rewst.io/building-a-basic-form-and-workflow |
+| Live training sessions | https://learn.rewst.io/page/live-training |
+
+### When to look things up
+
+- **Integration-specific actions**: look up the integration guide on docs.rewst.help to get exact action names and required fields
+- **Unfamiliar Jinja filter**: check the full filter list before inventing syntax
+- **Form or trigger setup**: consult the workflow builder setup page
+- **Subworkflow patterns**: check completion handlers & wrappers documentation
+- **Training walkthroughs**: point users to the relevant Cluck University course
+
+---
+
+## Rewst Variable Roots
+
+These are the top-level variable namespaces available inside Jinja expressions in Rewst workflows.
+
+| Root | Purpose | Example |
+|------|---------|---------|
+| `CTX` | Context — workflow inputs, data aliases, task results | `{{ CTX.user_id }}` |
+| `ORG` | Organization — org-level config and metadata | `{{ ORG.VARIABLES.company_name }}` |
+| `ORG.ATTRIBUTES` | Organization ID and managing org ID | `{{ ORG.ATTRIBUTES.id }}` |
+| `ORG.MAPPING` | External system identifiers for the org | `{{ ORG.MAPPING.psa_id }}` |
+| `ORG.HAS_TAG` | Check org tags (spaces → underscores) | `{{ ORG.HAS_TAG.premium_support }}` |
+| `TASKS` | Reference previous task results by name | `{{ TASKS.list_users.result.result }}` |
+| `TASKS_RESULT_DATA` | Shortcut for `TASKS.<name>.result.result` | `{{ TASKS_RESULT_DATA }}` |
+| `RESULT` | Current task's result (in data alias context) | `{{ RESULT.result.data.id }}` |
+| `UTILS` | Utilities — timestamps, UUIDs | `{{ UTILS.uuid4() }}` |
+| `WORKFLOW` | Current workflow metadata | `{{ WORKFLOW.id }}` |
+| `USER` | Executing user info | `{{ USER.username }}` |
+
+**Important**: for with-items tasks, use `TASKS.<task_name>.collected_results` instead of `.result.result`.
+
+### UTILS functions
+
+- `{{ UTILS.NOW() }}` — current timestamp (supports timezone and format args)
+- `{{ UTILS.uuid4() }}` — generate a random UUID
+- `{{ now('utc', '%Y-%m-%d') }}` — current date in UTC
+
+---
+
+## Commonly Used Jinja Filters
+
+These are the filters most relevant when building workflow specs. For the full list, see the Jinja filters reference above.
+
+### Text
+`lower`, `upper`, `title`, `capitalize`, `trim`, `replace`, `truncate`, `wordcount`
+
+### Type conversion
+`int`, `float`, `string`, `list`
+
+### JSON / data format
+- `json_dump` / `json` — serialize to JSON string
+- `json_parse` / `from_json_string` — deserialize JSON
+- `to_yaml_string` / `yaml_parse` — YAML conversion
+- `csv` / `parse_csv` — CSV conversion
+
+### Collections
+`first`, `last`, `length`, `sort`, `reverse`, `unique`, `flatten`, `join`, `map`, `select`, `reject`, `zip`, `sum`, `min`, `max`
+
+### Defaults & safety
+- `d` / `default` — fallback value if undefined: `{{ CTX.name | d("Unknown") }}`
+- `| d` is the idiomatic Rewst way to safely reference optional variables
+
+### Date & time (Rewst-specific)
+- `as_datetime` — parse string to datetime
+- `as_timezone("US/Eastern")` — convert timezone
+- `format_datetime("%Y-%m-%d")` — format output
+- `datedelta(days=7)` — add/subtract time
+- `convert_from_epoch` — epoch to datetime
+
+### Encoding
+`base64`, `decode_base64`, `urlencode`, `urldecode`, `escape`
+
+### Regex
+`regex_match`, `regex_search`, `regex_findall`, `regex_replace`
+
+### Rewst extras
+- `combine` — merge dicts: `{{ dict_a | combine(dict_b) }}`
+- `is_type("int")` — check value type
+- `is_json` — validate JSON
+- `hmac("secret")` — HMAC digest
+- `version_bump_major` / `_minor` / `_patch` — semver increment
+
+---
+
+## Workflow Design Best Practices
+
+These practices come from the official Rewst documentation and field experience.
+
+### Naming conventions
+- Workflow names: clear and descriptive (e.g. "List Disabled User Accounts"), avoid personal identifiers
+- Variables: pick one convention (snake_case or camelCase) and stick to it across all workflows
+- Prefix integration-specific variables: `psa_ticket_id`, `graph_user_id`
+- Use tags for additional workflow organization
+
+### Subworkflows
+- Use a subworkflow with With Items as a best practice when iterating through multiple items
+- This makes each iteration independently debuggable and keeps the parent workflow clean
+
+### API response optimization
+- First run a query without field filtering to discover the full response structure
+- Then limit the response to only the fields you need — keeps workflows clean and reduces data overhead
+
+### Task transitions
+- Use conditional logic: `{{ SUCCEEDED and CTX.list_of_things | d }}`
+- Conditions evaluate left to right
+- "Follow All" when multiple paths may execute simultaneously
+- "Follow First" when only one condition should trigger
+
+### Data alias hygiene
+- Separate complex alias creation into dedicated "Set Variable" noop tasks rather than embedding in API action transitions
+- This simplifies troubleshooting and lets you test with actual data
+
+### Testing & documentation
+- Develop and test in a sandbox or development environment first
+- Always test a workflow before publishing
+- Document workflow changes during updates for version control
+- Use RoboRewsty or manual documentation to track the intent of each action
+
+### Try-catch for error handling
+Rewst supports try-catch in Jinja for graceful error handling:
+```
+{{ try }}
+    {{ CTX.possibly_undefined_variable }}
+{{ catch }}
+    Error: {{ exception }}
+{{ endtry }}
+```
+
+---
+
 ## Changelog
 
+- 2026-04-14: Add Rewst docs & Cluck University references, variable roots, Jinja filters, and expanded best practices
 - 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
