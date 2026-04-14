@@ -106,6 +106,58 @@ webhook trigger. The org context is set automatically via the orgId in the URL:
 No parent/child multi-org loop needed — Microsoft Graph and ORG.VARIABLES
 resolve to the correct org automatically.
 
+### Option generator (dynamic form dropdowns)
+
+An option generator is a small workflow that feeds live data into a form dropdown.
+It requires three things:
+
+1. Set **Workflow Type** to "Option Generator" in workflow settings
+2. Add an **Output Configuration** variable named `options` pointing to `{{ CTX.options }}`
+3. Connect the form dropdown field to this workflow's trigger
+
+The workflow fetches data from an integration, transforms it into a list of
+`{label, value}` objects, and stores it as `CTX.options`. The form uses:
+- **Label Field** — what the user sees in the dropdown
+- **Value Field** — what gets submitted as `{{ CTX.<field_name> }}`
+
+```
+## Workflow: Option Generator — List Security Groups
+
+### 1. Goal
+Provide a dynamic dropdown of Azure AD security groups for use in forms.
+
+### 2. Trigger
+- Type: Webhook (called by the form field)
+
+### 3. Inputs
+No manual inputs — org context is resolved automatically via the webhook URL.
+
+### 4. Integrations Used
+- Microsoft Graph — List Groups
+
+### 5. Steps
+1. **list_groups**: Action: List Groups (Microsoft Graph).
+   Key fields: `$filter` = `securityEnabled eq true`
+   - Data alias on transition: `all_groups = {{ RESULT.result.data.value }}`
+2. **build_options**: Noop (Set Variable) task.
+   - Data alias on transition:
+     `options = {{ [{"label": g.displayName, "value": g.id} for g in CTX.all_groups] }}`
+3. **end**: Noop convergence point. Task Transition Criteria Sensitivity = 1.
+
+### 6. Outputs / Results
+- Output Configuration variable: `options` = `{{ CTX.options }}`
+
+### 7. Organization Scope
+Single org (resolved via webhook orgId)
+
+### 8. Constraints / Notes
+- Workflow Type must be set to "Option Generator"
+- The output variable MUST be named "options"
+- Connect the form dropdown's Label Field to "label" and Value Field to "value"
+```
+
+---
+
 ### Filtering lists safely
 
 Prefer explicit list comprehensions over `selectattr` for nullable fields.
@@ -168,6 +220,126 @@ Single org (the org that submits the form)
 - Idempotent: check_user_exists prevents duplicate accounts
 - License assignment may take a moment — consider a 30s delay or retry before proceeding
 - security_groups is optional; skip add_to_groups if empty
+```
+
+---
+
+## Example: User Offboarding
+
+```
+## Workflow: User Offboarding
+
+### 1. Goal
+Disable a Microsoft 365 user account, remove all license assignments, remove from all groups, and create an offboarding ticket in ConnectWise Manage.
+
+### 2. Trigger
+- Type: Form
+- Description: IT staff submits the offboarding form
+
+### 3. Inputs
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| user_id | string | yes | M365 user object ID (use option generator dropdown) |
+| ticket_summary | string | no | Custom ticket summary, defaults to auto-generated |
+
+### 4. Integrations Used
+- Microsoft Graph — Get User, Update User, List User Licenses, Remove License from User, List Group Members, Remove Group Member
+- ConnectWise Manage — create offboarding service ticket
+
+### 5. Steps
+1. **get_user**: Action: Get User (Microsoft Graph). Key field: `id = {{ CTX.user_id }}`.
+   - Data alias on transition: `user_info = {{ RESULT.result.data }}`
+2. **disable_account**: Action: Update User (Microsoft Graph). Key fields: `id = {{ CTX.user_id }}`, `accountEnabled = false`.
+3. **list_user_licenses**: Action: List User Licenses (Microsoft Graph). Key field: `id = {{ CTX.user_id }}`.
+   - Data alias on transition: `user_licenses = {{ RESULT.result.data.value }}`
+4. **remove_licenses**: Condition: `{{ SUCCEEDED and CTX.user_licenses | d | length > 0 }}`.
+   Action: Remove License from User (Microsoft Graph).
+   with-items: `license in {{ CTX.user_licenses }}`
+   Key fields: `id = {{ CTX.user_id }}`, `skuId = {{ item.skuId }}`
+5. **list_user_groups**: Action: List Groups (Microsoft Graph) filtered to user's memberships.
+   - Data alias on transition: `user_groups = {{ RESULT.result.data.value }}`
+6. **remove_from_groups**: Condition: `{{ SUCCEEDED and CTX.user_groups | d | length > 0 }}`.
+   Action: Remove Group Member (Microsoft Graph).
+   with-items: `group in {{ CTX.user_groups }}`
+   Key fields: `group_id = {{ item.id }}`, `member_id = {{ CTX.user_id }}`
+7. **create_offboarding_ticket**: Create service ticket in ConnectWise Manage.
+   Summary: `{{ CTX.ticket_summary | d("Offboarding: " ~ CTX.user_info.displayName ~ " (" ~ CTX.user_info.userPrincipalName ~ ")") }}`
+   - Data alias on transition: `ticket_id = {{ RESULT.result.data.id }}`
+8. **end**: Noop convergence point. Task Transition Criteria Sensitivity = 1.
+
+### 6. Outputs / Results
+- Publish `CTX.ticket_id` — ConnectWise ticket ID for follow-up
+
+### 7. Organization Scope
+Single org
+
+### 8. Constraints / Notes
+- Steps 4 and 6 use with-items — consider wrapping in subworkflows for debuggability
+- Disabling the account first (step 2) prevents the user from signing in while cleanup runs
+- License and group removal steps are conditional — skip if lists are empty
+- user_id field in the form should use an option generator that lists active users
+```
+
+---
+
+## Example: Inactive Users Report (Cron)
+
+```
+## Workflow: List Inactive Users Last 30 Days
+
+### 1. Goal
+Retrieve all Microsoft 365 users who have not signed in during the last 30 days and publish the list as workflow output.
+
+### 2. Trigger
+- Type: Cron
+- Description: Runs daily (e.g. 07:00 UTC)
+
+### 3. Inputs
+No inputs — the 30-day cutoff is calculated automatically at runtime.
+
+### 4. Integrations Used
+- Microsoft Graph — List Users with signInActivity
+
+### 5. Steps
+1. **calculate_cutoff_date**: Noop (Set Variable) task.
+   - Data alias on transition: `cutoff_date = {{ now('utc', '%Y-%m-%dT%H:%M:%SZ') | as_datetime | datedelta(days=-30) | format_datetime('%Y-%m-%dT%H:%M:%SZ') }}`
+2. **list_all_users**: Action: List Users (Microsoft Graph).
+   Key fields:
+     - `$select` = `displayName,userPrincipalName,signInActivity,accountEnabled`
+     - `$filter` = `accountEnabled eq true`
+   - Data alias on transition: `all_users = {{ RESULT.result.data.value }}`
+3. **filter_inactive_users**: Noop (Set Variable) task.
+   - Data alias on transition:
+     ```
+     inactive_users = {{
+       [
+         {
+           "displayName": u.displayName,
+           "userPrincipalName": u.userPrincipalName,
+           "lastSignIn": u.signInActivity.lastSignInDateTime | d("Never")
+         }
+         for u in CTX.all_users
+         if (
+           u.get('signInActivity') is none
+           or u.signInActivity.lastSignInDateTime is none
+           or u.signInActivity.lastSignInDateTime < CTX.cutoff_date
+         )
+       ]
+     }}
+     ```
+4. **end**: Noop convergence point. Task Transition Criteria Sensitivity = 1.
+
+### 6. Outputs / Results
+- Publish `CTX.inactive_users` — list of dicts with displayName, userPrincipalName, and lastSignIn
+
+### 7. Organization Scope
+Single org
+
+### 8. Constraints / Notes
+- signInActivity requires Azure AD Premium P1/P2 and AuditLog.Read.All permission
+- Users who have never signed in (signInActivity is null) are included
+- Filtering is client-side in Jinja — server-side $filter on signInActivity is unreliable
+- API response is limited with $select to reduce data overhead
 ```
 
 ---
@@ -427,6 +599,7 @@ Rewst supports try-catch in Jinja for graceful error handling:
 
 ## Changelog
 
+- 2026-04-14: Add option generator pattern, user offboarding example, and inactive users report example
 - 2026-04-14: Add raw GitHub fetch paths and integration actions & endpoints lookup table for accurate action names
 - 2026-04-14: Add Rewst docs & Cluck University references, variable roots, Jinja filters, and expanded best practices
 - 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
