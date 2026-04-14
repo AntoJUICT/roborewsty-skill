@@ -195,19 +195,22 @@ Create a new Microsoft 365 user, assign a license, add to security groups, and o
 | security_groups | list | no | Azure AD group IDs |
 
 ### 4. Integrations Used
-- Microsoft Graph — create user, assign license, add to groups
+- Microsoft Graph — Get User, Create User, Assign License to User, Add Group Member
 - ConnectWise Manage — create onboarding service ticket
 
 ### 5. Steps
-1. **check_user_exists**: Query Microsoft Graph GET /users/{{ CTX.email }}. 
+1. **check_user_exists**: Action: Get User (Microsoft Graph). Key field: `userPrincipalName = {{ CTX.email }}`.
    - Transition to "create_user" if 404, skip to "end" if user exists.
-2. **create_user**: POST /users via Microsoft Graph with displayName, userPrincipalName, password.
+2. **create_user**: Action: Create User (Microsoft Graph). Key fields: `displayName = {{ CTX.first_name }} {{ CTX.last_name }}`, `userPrincipalName = {{ CTX.email }}`, `mailNickname = {{ CTX.first_name | lower }}`, `accountEnabled = true`, `passwordProfile` with temporary password.
    - Data alias on transition: `new_user_id = {{ RESULT.result.data.id }}`
-3. **assign_license**: POST /users/{{ CTX.new_user_id }}/assignLicense with `license_sku`.
-4. **add_to_groups**: If `security_groups` is not empty, with-items: `group in {{ CTX.security_groups }}` — POST /groups/{{ item }}/members.
-5. **create_onboarding_ticket**: Create service ticket in ConnectWise Manage with summary: "Onboarding: {{ CTX.first_name }} {{ CTX.last_name }} ({{ CTX.email }})".
+3. **assign_license**: Action: Assign License to User (Microsoft Graph). Key fields: `id = {{ CTX.new_user_id }}`, `skuId = {{ CTX.license_sku }}`.
+4. **add_to_groups**: Condition: `{{ SUCCEEDED and CTX.security_groups | d | length > 0 }}`. Action: Add Group Member (Microsoft Graph).
+   with-items: `group in {{ CTX.security_groups }}`
+   Key fields: `group_id = {{ item }}`, `member_id = {{ CTX.new_user_id }}`
+5. **create_onboarding_ticket**: Create service ticket in ConnectWise Manage.
+   Summary: `{{ "Onboarding: " ~ CTX.first_name ~ " " ~ CTX.last_name ~ " (" ~ CTX.email ~ ")" }}`
    - Data alias on transition: `ticket_id = {{ RESULT.result.data.id }}`
-6. **end**: Noop convergence point.
+6. **end**: Noop convergence point. Task Transition Criteria Sensitivity = 1.
 
 ### 6. Outputs / Results
 - Publish `CTX.new_user_id` — M365 user ID for downstream workflows
