@@ -115,6 +115,12 @@ webhook trigger. The org context is set automatically via the orgId in the URL:
 No parent/child multi-org loop needed — Microsoft Graph and ORG.VARIABLES
 resolve to the correct org automatically.
 
+**Note — Rewst webhooks are async.** A webhook call always returns an acknowledgment,
+never the workflow output. Do not use Rewst webhooks as synchronous option generators
+where the caller waits for a `{options: [...]}` response — the response will always be
+the request metadata, not the workflow result. Use a cache-push pattern instead: Rewst
+runs the workflow and POSTs the result to an external endpoint, which the caller reads from.
+
 ### Option generator (dynamic form dropdowns)
 
 An option generator is a small workflow that feeds live data into a form dropdown.
@@ -429,6 +435,7 @@ both cases correctly.
 - List every data alias explicitly — RoboRewsty uses these to wire transitions
 - Note conditions on transitions (e.g. "only if list is not empty")
 - In JSON body fields: always map keys individually, never pass a whole object as one expression
+- Webhook trigger body fields are accessed as `{{ CTX.body.<field> }}`, not `{{ CTX.<field> }}` — Rewst does not auto-map webhook payload fields to top-level context variables
 
 ---
 
@@ -615,3 +622,4 @@ Rewst supports try-catch in Jinja for graceful error handling:
 - 2026-04-14: Add raw GitHub fetch paths and integration actions & endpoints lookup table for accurate action names
 - 2026-04-14: Add Rewst docs & Cluck University references, variable roots, Jinja filters, and expanded best practices
 - 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
+- 2026-04-15: Add CTX.body webhook body access tip; add async webhook limitation note to per-org webhook trigger pattern
