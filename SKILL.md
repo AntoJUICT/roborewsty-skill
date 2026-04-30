@@ -93,17 +93,58 @@ Data alias on transition from step N:
 **wait_for_license**: Add a delay task (e.g. 30s) or a retry loop checking license assignment status before proceeding.
 ```
 
-### End noop — Task Transition Criteria
+### Standard Autotask change_description format (JUICT portal workflows)
 
-Every end noop needs Task Transition Criteria Sensitivity set to 1.
-RoboRewsty does NOT pick this up from a spec note — write it as an explicit click instruction in the end step:
+Every `create_ticket` step in a JUICT portal submit workflow uses this fixed structure for `change_description`:
+
+```
+Wat betreft de change?
+[Workflow-specific description + relevant form fields]
+Aangevraagd door: {{ CTX.body.submitterName }} ({{ CTX.body.submitterUpn }})
+
+Bij hoeveel gebruikers is de change van toepassing?
+1
+
+Hoe hoog is de impact van de change?
+Laag
+
+Aandachtspunten van change?
+De aanvraag mag alleen via de ICT-contactpersoon verlopen.
+```
+
+Always use this exact four-section structure. Never use a flat description without these headers.
+
+---
+
+### Error logging on failure transitions — subworkflow vs. native action
+
+**Never publish `error_detail` via `| tojson` on a subworkflow step's On Failure transition.**
+
+When a subworkflow (e.g. `[JUICT] Create or update ticket`) fails, `RESULT` is a Rewst
+`Result` object — not a plain dict, not JSON-serializable. If a publish expression in the
+On Failure transition throws a `TypeError`, the **entire transition crashes** and the error
+path (`error_note` / `notify_juict`) is **never called**. The workflow silently dies.
+
+| Step type | On Failure publish |
+|-----------|-------------------|
+| Native action (Graph, Autotask, core) | `failed_step = "name"` + `error_detail = {{ RESULT.result \| default({}) \| tojson }}` |
+| Subworkflow call | `failed_step = "name"` only — **no error_detail** |
+
+The `\| default('onbekende fout')` fallback in `error_note` / `notify_juict` is sufficient.
+
+---
+
+### End noop — Task Transition Criteria + Transition Mode
+
+Every end noop needs two settings changed. RoboRewsty does NOT pick these up from a spec note — write them as explicit click instructions in the end step:
 
 ```
 **end**: Noop convergence point.
   After placing the end noop: click the noop node → open properties panel →
   find "Task Transition Criteria Sensitivity" → set value to 1.
-  Only one path reaches end per execution. Leaving the default (all paths)
-  causes TaskTransitionCriteriaError on every run.
+  find "Transition Mode" → set to "Follow First".
+  Only one path reaches end per execution. Leaving the defaults causes
+  TaskTransitionCriteriaError on every run.
 ```
 
 ### Per-org webhook trigger (MSP option generators)
@@ -623,3 +664,4 @@ Rewst supports try-catch in Jinja for graceful error handling:
 - 2026-04-14: Add Rewst docs & Cluck University references, variable roots, Jinja filters, and expanded best practices
 - 2026-04-14: Initial version — spec format, common patterns, JSON body pitfall, new user onboarding example
 - 2026-04-15: Add CTX.body webhook body access tip; add async webhook limitation note to per-org webhook trigger pattern
+- 2026-04-30: Add standard change_description format for portal submit workflows; add error logging pattern for subworkflow vs native actions; add Transition Mode "Follow First" to end noop pattern
