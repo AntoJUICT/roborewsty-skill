@@ -93,23 +93,23 @@ Data alias on transition from step N:
 **wait_for_license**: Add a delay task (e.g. 30s) or a retry loop checking license assignment status before proceeding.
 ```
 
-### Standard Autotask change_description format (JUICT portal workflows)
+### Standard Autotask change_description format (MSP portal workflows)
 
-Every `create_ticket` step in a JUICT portal submit workflow uses this fixed structure for `change_description`:
+Every `create_ticket` step in a portal submit workflow uses this fixed structure for `change_description`:
 
 ```
-Wat betreft de change?
+What is the change about?
 [Workflow-specific description + relevant form fields]
-Aangevraagd door: {{ CTX.body.submitterName }} ({{ CTX.body.submitterUpn }})
+Requested by: {{ CTX.body.submitterName }} ({{ CTX.body.submitterUpn }})
 
-Bij hoeveel gebruikers is de change van toepassing?
+How many users does the change affect?
 1
 
-Hoe hoog is de impact van de change?
-Laag
+What is the impact level?
+Low
 
-Aandachtspunten van change?
-De aanvraag mag alleen via de ICT-contactpersoon verlopen.
+Notes / constraints?
+[Any org-specific notes here]
 ```
 
 Always use this exact four-section structure. Never use a flat description without these headers.
@@ -120,17 +120,17 @@ Always use this exact four-section structure. Never use a flat description witho
 
 **Never publish `error_detail` via `| tojson` on a subworkflow step's On Failure transition.**
 
-When a subworkflow (e.g. `[JUICT] Create or update ticket`) fails, `RESULT` is a Rewst
+When a subworkflow (e.g. `[MSP] Create or update ticket`) fails, `RESULT` is a Rewst
 `Result` object — not a plain dict, not JSON-serializable. If a publish expression in the
 On Failure transition throws a `TypeError`, the **entire transition crashes** and the error
-path (`error_note` / `notify_juict`) is **never called**. The workflow silently dies.
+path (`error_note` / `notify_team`) is **never called**. The workflow silently dies.
 
 | Step type | On Failure publish |
 |-----------|-------------------|
 | Native action (Graph, Autotask, core) | `failed_step = "name"` + `error_detail = {{ RESULT.result \| default({}) \| tojson }}` |
 | Subworkflow call | `failed_step = "name"` only — **no error_detail** |
 
-The `\| default('onbekende fout')` fallback in `error_note` / `notify_juict` is sufficient.
+The `\| default('unknown error')` fallback in `error_note` / `notify_team` is sufficient.
 
 ---
 
